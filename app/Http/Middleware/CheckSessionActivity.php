@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckSessionActivity
 {
-    private const TIMEOUT = 600; // 10 minutos em segundos
+    private const TIMEOUT = 3600; // 60 minutos em segundos
 
     public function handle(Request $request, Closure $next): Response
     {
