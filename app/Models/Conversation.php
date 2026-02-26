@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Events\MessagesRead;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,7 @@ class Conversation extends Model
         'visitor_name',
         'product_id',
         'last_message_at',
+        'last_message',
         'unread_count',
     ];
 
@@ -24,8 +26,6 @@ class Conversation extends Model
         'last_message_at' => 'datetime',
         'unread_count'    => 'integer',
     ];
-
-    // ── Relações ──────────────────────────────────────────────────────────────
 
     public function tenant(): BelongsTo
     {
@@ -37,16 +37,22 @@ class Conversation extends Model
         return $this->hasMany(Message::class);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
     public function incrementUnread(): void
     {
         $this->increment('unread_count');
     }
 
-    public function markAsRead(): void
+    /**
+     * Marca mensagens como lidas e notifica o outro lado via WebSocket.
+     *
+     * @param string $readBy 'admin' | 'visitor'
+     */
+    public function markAsRead(string $readBy = 'admin'): void
     {
         $this->update(['unread_count' => 0]);
         $this->messages()->where('read', false)->update(['read' => true]);
+
+        // Notifica o canal em tempo real — o outro lado actualiza os ticks
+        broadcast(new MessagesRead($this->id, $readBy));
     }
 }

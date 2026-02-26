@@ -6,6 +6,7 @@ use App\Actions\Chat\SendMessageAction;
 use App\Contracts\ConversationRepositoryInterface;
 use App\DTOs\SendMessageDTO;
 use App\Enums\SenderType;
+use App\Events\MessagesRead;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Chat\SendMessageRequest;
 use App\Models\Conversation;
@@ -68,8 +69,9 @@ class MessageController extends Controller
     }
 
     /**
-     * Visitante consulta as suas próprias mensagens (sem autenticação).
-     * Qualquer pessoa com o UUID da conversa pode ver as mensagens.
+     * Visitante consulta as suas mensagens.
+     * Marca mensagens do admin como lidas e dispara MessagesRead SEMPRE —
+     * para garantir que o admin vê ✓✓ mesmo quando o visitante já está no chat.
      */
     public function visitorMessages(Request $request, string $conversationId): JsonResponse
     {
@@ -80,6 +82,15 @@ class MessageController extends Controller
         }
 
         $messages = $conversation->messages()->oldest()->get();
+
+        // Marca mensagens do admin não lidas como lidas
+        $conversation->messages()
+            ->where('sender_type', 'admin')
+            ->where('read', false)
+            ->update(['read' => true]);
+
+        // Dispara evento SEMPRE — visitante está activo, admin deve ver ✓✓
+        broadcast(new MessagesRead($conversationId, 'visitor'));
 
         return response()->json([
             'data' => $messages->map(fn($m) => $this->formatMessage($m)),
@@ -92,7 +103,7 @@ class MessageController extends Controller
             'id'              => $m->id,
             'conversation_id' => $m->conversation_id,
             'sender_type'     => $m->sender_type,
-            'sender'          => $m->sender_type, // alias para compatibilidade frontend
+            'sender'          => $m->sender_type,
             'type'            => $m->type,
             'content'         => $m->content,
             'image_url'       => $m->image_url,

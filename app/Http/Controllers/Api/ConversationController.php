@@ -61,6 +61,7 @@ class ConversationController extends Controller
                 'visitor_name'    => $c->visitor_name,
                 'product_id'      => $c->product_id,
                 'unread_count'    => $c->unread_count,
+                'last_message'    => $c->last_message,       // ← novo
                 'last_message_at' => $c->last_message_at?->toISOString(),
                 'created_at'      => $c->created_at->toISOString(),
             ]),
@@ -78,7 +79,6 @@ class ConversationController extends Controller
             return response()->json(['message' => 'Conversa não encontrada.'], 404);
         }
 
-        // Marcar mensagens como lidas
         $conversation->markAsRead();
 
         return response()->json([

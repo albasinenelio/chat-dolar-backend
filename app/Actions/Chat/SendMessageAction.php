@@ -37,8 +37,13 @@ class SendMessageAction
         ]);
 
         // Actualizar metadados da conversa
+        $lastMessage = $dto->type->value === 'image'
+            ? ($dto->caption ?? '📷 Imagem')
+            : $dto->content;
+
         $conversation->update([
             'last_message_at' => now(),
+            'last_message'    => $lastMessage,   // ← novo
         ]);
 
         // Incrementar unread apenas para mensagens do visitante
@@ -46,8 +51,6 @@ class SendMessageAction
             $conversation->incrementUnread();
         }
 
-        // Disparar evento de broadcast via Reverb
-        // Canal: conversation.{id} — público, visitante não precisa de autenticação
         broadcast(new MessageSent($message));
 
         return $message;
