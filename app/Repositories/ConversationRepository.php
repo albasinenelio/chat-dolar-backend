@@ -13,8 +13,7 @@ class ConversationRepository implements ConversationRepositoryInterface
 {
     public function create(StartConversationDTO $dto): Conversation
     {
-        // Gerar visitor_id sequencial por tenant (user-0001, user-0002, ...)
-        $count = Conversation::where('tenant_id', $dto->tenantId)->count();
+        $count     = Conversation::where('tenant_id', $dto->tenantId)->count();
         $visitorId = 'user-' . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
 
         return Conversation::create([
@@ -28,11 +27,23 @@ class ConversationRepository implements ConversationRepositoryInterface
 
     public function listForUser(User $user): Collection
     {
-        $query = Conversation::with(['messages' => function ($q) {
-            $q->latest()->limit(1);
-        }])->latest('last_message_at');
+        $query = Conversation::with(['messages' => fn($q) => $q->latest()->limit(1)])
+            ->whereNull('archived_at')
+            ->latest('last_message_at');
 
-        // super_admin vê tudo; admin vê só o seu tenant
+        if (!$user->isSuperAdmin()) {
+            $query->where('tenant_id', $user->tenant_id);
+        }
+
+        return $query->get();
+    }
+
+    public function listArchivedForUser(User $user): Collection
+    {
+        $query = Conversation::with(['messages' => fn($q) => $q->latest()->limit(1)])
+            ->whereNotNull('archived_at')
+            ->latest('archived_at');
+
         if (!$user->isSuperAdmin()) {
             $query->where('tenant_id', $user->tenant_id);
         }
@@ -49,5 +60,50 @@ class ConversationRepository implements ConversationRepositoryInterface
         }
 
         return $query->first();
+    }
+
+    public function archive(string $id, User $user): bool
+    {
+        $conversation = $this->findForUser($id, $user);
+
+        if (!$conversation || $conversation->archived_at !== null) {
+            return false;
+        }
+
+        return (bool) $conversation->update(['archived_at' => now()]);
+    }
+
+    public function unarchive(string $id, User $user): bool
+    {
+        $query = Conversation::where('id', $id)->whereNotNull('archived_at');
+
+        if (!$user->isSuperAdmin()) {
+            $query->where('tenant_id', $user->tenant_id);
+        }
+
+        $conversation = $query->first();
+
+        if (!$conversation) {
+            return false;
+        }
+
+        return (bool) $conversation->update(['archived_at' => null]);
+    }
+
+    public function deleteArchived(string $id, User $user): bool
+    {
+        $query = Conversation::where('id', $id)->whereNotNull('archived_at');
+
+        if (!$user->isSuperAdmin()) {
+            $query->where('tenant_id', $user->tenant_id);
+        }
+
+        $conversation = $query->first();
+
+        if (!$conversation) {
+            return false;
+        }
+
+        return (bool) $conversation->delete();
     }
 }

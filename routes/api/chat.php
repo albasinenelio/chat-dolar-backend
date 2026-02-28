@@ -13,15 +13,20 @@ Route::post('/messages', [MessageController::class, 'store']);
 Route::post('/typing', [TypingController::class, 'notify']);
 Route::post('/upload', [UploadController::class, 'store']);
 
-// Visitante consulta as suas mensagens (sem auth)
 Route::get('/conversations/{conversationId}/messages', [MessageController::class, 'visitorMessages']);
-
-// Visitante consulta preço do produto pelo ID externo + tenant_id
 Route::get('/products/{productId}', [ProductController::class, 'show']);
 
 // ── Admin — protegidas ────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/admin/conversations', [ConversationController::class, 'index']);
-    Route::get('/admin/conversations/{id}', [ConversationController::class, 'show']);
+
+    // ⚠️ /archived ANTES de /{id} para evitar conflito de parâmetro
+    Route::get('/admin/conversations/archived',               [ConversationController::class, 'indexArchived']);
+
+    Route::get('/admin/conversations',                        [ConversationController::class, 'index']);
+    Route::get('/admin/conversations/{id}',                   [ConversationController::class, 'show']);
     Route::get('/admin/conversations/{conversationId}/messages', [MessageController::class, 'index']);
+
+    Route::patch('/admin/conversations/{id}/archive',         [ConversationController::class, 'archive']);
+    Route::patch('/admin/conversations/{id}/unarchive',       [ConversationController::class, 'unarchive']);
+    Route::delete('/admin/conversations/{id}',                [ConversationController::class, 'destroy']);
 });

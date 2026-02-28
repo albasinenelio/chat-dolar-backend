@@ -20,10 +20,12 @@ class Conversation extends Model
         'last_message_at',
         'last_message',
         'unread_count',
+        'archived_at',      // ← adicionado
     ];
 
     protected $casts = [
         'last_message_at' => 'datetime',
+        'archived_at'     => 'datetime',   // ← adicionado
         'unread_count'    => 'integer',
     ];
 
@@ -52,7 +54,6 @@ class Conversation extends Model
         $this->update(['unread_count' => 0]);
         $this->messages()->where('read', false)->update(['read' => true]);
 
-        // Notifica o canal em tempo real — o outro lado actualiza os ticks
         broadcast(new MessagesRead($this->id, $readBy));
     }
 }
