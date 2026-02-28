@@ -43,5 +43,8 @@ class DatabaseSeeder extends Seeder
             'tenant_id' => $tenantAmigo->id,
             'role'      => 'admin',
         ]);
+
+
+        $this->call(ProductSeeder::class);
     }
 }
