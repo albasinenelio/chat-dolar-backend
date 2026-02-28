@@ -14,9 +14,9 @@ class Tenant extends Model
     protected $fillable = [
         'name',
         'slug',
+        'btc_address',
+        'paypal_address',
     ];
-
-    // ── Relações ──────────────────────────────────────────────────────────────
 
     public function owner(): HasOne
     {

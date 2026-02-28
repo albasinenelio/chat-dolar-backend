@@ -18,24 +18,23 @@ class MessageSent implements ShouldBroadcastNow
     ) {}
 
     /**
-     * Canal público — visitante não autenticado pode subscrever.
+     * Broadcast em dois canais:
+     *  - conversation.{id}  → visitante + admin dentro do chat
+     *  - tenant.{id}        → LeadsPage do admin (badge instantâneo)
      */
-    public function broadcastOn(): Channel
+    public function broadcastOn(): array
     {
-        return new Channel('conversation.' . $this->message->conversation_id);
+        return [
+            new Channel('conversation.' . $this->message->conversation_id),
+            new Channel('tenant.' . $this->message->conversation->tenant_id),
+        ];
     }
 
-    /**
-     * Nome do evento que o frontend vai ouvir.
-     */
     public function broadcastAs(): string
     {
         return 'message.sent';
     }
 
-    /**
-     * Payload enviado ao frontend.
-     */
     public function broadcastWith(): array
     {
         return [

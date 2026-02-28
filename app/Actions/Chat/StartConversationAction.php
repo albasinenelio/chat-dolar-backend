@@ -18,15 +18,6 @@ class StartConversationAction
         private readonly ConversationRepositoryInterface $repository,
     ) {}
 
-    /**
-     * Inicia uma nova conversa para o visitante.
-     * Após criar, injeta:
-     *   1. Evento ConversationCreated — admins do tenant actualizam a lista
-     *   2. Mensagem automática do visitante ("Hi, I want to buy...")
-     *   3. Auto-reply bot com instruções de pagamento
-     *
-     * @throws ValidationException
-     */
     public function execute(StartConversationDTO $dto): Conversation
     {
         $tenant = Tenant::find($dto->tenantId);
@@ -39,25 +30,30 @@ class StartConversationAction
 
         $conversation = $this->repository->create($dto);
 
-        // ── 1. Notifica admins do tenant — nova conversa na lista ─────────────
         broadcast(new ConversationCreated($conversation));
 
-        // ── 2. Lookup do produto por public_id ────────────────────────────────
         $product = $dto->productId
             ? Product::where('public_id', $dto->productId)
                      ->where('tenant_id', $dto->tenantId)
                      ->first()
             : null;
 
-        // ── 3. Mensagem automática do visitante ───────────────────────────────
+        // Mensagem automática do visitante
         $visitorMessage = $product
             ? 'Hi! I want to buy: ' . $product->visual_name . ' ($' . $product->price . ')'
             : 'Hi! I would like more information.';
 
         $this->createAndBroadcast($conversation, 'visitor', $visitorMessage);
 
-        // ── 4. Auto-reply bot com instruções de pagamento ─────────────────────
-        $this->createAndBroadcast($conversation, 'admin', $this->buildPaymentMessage($product));
+        // Balão 1 — instruções de pagamento
+        $this->createAndBroadcast($conversation, 'admin', $this->buildPaymentMessage($product, $tenant));
+
+        // Balão 2 — instrução de seguimento
+        $this->createAndBroadcast(
+            $conversation,
+            'admin',
+            "Once payment is done, please send us the receipt or proof of payment in this chat and we will process your order right away."
+        );
 
         return $conversation;
     }
@@ -77,10 +73,15 @@ class StartConversationAction
             'last_message_at' => now(),
         ]);
 
+        // Incrementa unread só para mensagens do visitante
+        if ($senderType === 'visitor') {
+            $conversation->incrementUnread();
+        }
+
         broadcast(new MessageSent($message));
     }
 
-    private function buildPaymentMessage(?Product $product): string
+    private function buildPaymentMessage(?Product $product, Tenant $tenant): string
     {
         $price     = $product ? (float) $product->price : null;
         $priceText = $price ? '$' . $price : 'the agreed amount';
@@ -93,21 +94,45 @@ class StartConversationAction
             ? 'https://www.g2a.com/search?query=' . $price . '+usd+gift+card'
             : 'https://www.g2a.com';
 
-        return
-            "Hello! To complete your purchase, please choose one of the payment options below:\n" .
-            "\n" .
-            "Option 1 - Crypto (Binance)\n" .
-            "Send " . $priceText . " to the following BTC address:\n" .
-            "1MPa1fSFYYWADLC7xvZpXh5VM1mDp2mjGD\n" .
-            "\n" .
-            "Option 2 - Gift Card via Eneba\n" .
-            "Purchase a " . $priceText . " gift card here:\n" .
-            $enebaLink . "\n" .
-            "\n" .
-            "Option 3 - Gift Card via G2A\n" .
-            "Purchase a " . $priceText . " gift card here:\n" .
-            $g2aLink . "\n" .
-            "\n" .
-            "Once payment is done, please send us the receipt or proof of payment in this chat and we will process your order right away.";
+        $lines   = [];
+        $lines[] = "The safest and most private payments are via Crypto or Gift Cards.";
+        $lines[] = "";
+        $lines[] = "To complete your purchase of {$priceText}, choose one of the options below:";
+        $lines[] = "";
+
+        $optionNum = 1;
+
+        // Gift Card via Eneba
+        $lines[] = "Option {$optionNum} – Gift Card via Eneba";
+        $lines[] = "Simple, easy and safe — accepted methods include:";
+        $lines[] = "Card ✅  PayPal ✅  Apple Pay ✅  Paysafe Card ✅";
+        $lines[] = "NETELLER ✅  Google Pay ✅  Skrill ✅  and more…";
+        $lines[] = "Purchase here: {$enebaLink}";
+        $lines[] = "";
+        $optionNum++;
+
+        // Gift Card via G2A
+        $lines[] = "Option {$optionNum} – Gift Card via G2A";
+        $lines[] = "Same methods accepted.";
+        $lines[] = "Purchase here: {$g2aLink}";
+        $lines[] = "";
+        $optionNum++;
+
+        // PayPal — apenas se o tenant tiver endereço configurado
+        if (!empty($tenant->paypal_address)) {
+            $lines[] = "Option {$optionNum} – PayPal";
+            $lines[] = "Send {$priceText} to: {$tenant->paypal_address}";
+            $lines[] = "";
+            $optionNum++;
+        }
+
+        // BTC — apenas se o tenant tiver endereço configurado
+        if (!empty($tenant->btc_address)) {
+            $lines[] = "Option {$optionNum} – Crypto (BTC)";
+            $lines[] = "Send {$priceText} to the following address ⤵️";
+            $lines[] = $tenant->btc_address;
+        }
+
+        return implode("\n", $lines);
     }
 }
