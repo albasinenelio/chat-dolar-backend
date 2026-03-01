@@ -10,8 +10,10 @@ return new class extends Migration
     {
         Schema::create('tenants', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('name');                    // privado, nunca exposto
-            $table->string('slug')->unique();          // privado, nunca exposto
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->string('btc_address')->nullable();
+            $table->string('paypal_address')->nullable();
             $table->timestamps();
         });
     }
