@@ -75,7 +75,7 @@ Os endereços são extraídos do campo `btc_address` e `paypal_address` do tenan
 
 **Mensagem 3 — do admin/bot:**
 ```
-Once payment is done, please send us the receipt or proof of payment in this chat and we will process your order right away.
+Once payment is done, please send us the receipt or proof of payment.
 ```
 
 ### 5. Admin recebe a conversa em tempo real

@@ -38,22 +38,13 @@ class StartConversationAction
                      ->first()
             : null;
 
-        // Mensagem automática do visitante
         $visitorMessage = $product
             ? 'Hi! I want to buy: ' . $product->visual_name . ' ($' . $product->price . ')'
-            : 'Hi! I would like more information.';
+            : 'Hi! I want to finalize the purchase.';
 
         $this->createAndBroadcast($conversation, 'visitor', $visitorMessage);
-
-        // Balão 1 — instruções de pagamento
         $this->createAndBroadcast($conversation, 'admin', $this->buildPaymentMessage($product, $tenant));
-
-        // Balão 2 — instrução de seguimento
-        $this->createAndBroadcast(
-            $conversation,
-            'admin',
-            "Once payment is done, please send us the receipt or proof of payment in this chat and we will process your order right away."
-        );
+        $this->createAndBroadcast($conversation, 'admin', "Once payment is done, please send us the receipt or proof of payment.");
 
         return $conversation;
     }
@@ -73,7 +64,6 @@ class StartConversationAction
             'last_message_at' => now(),
         ]);
 
-        // Incrementa unread só para mensagens do visitante
         if ($senderType === 'visitor') {
             $conversation->incrementUnread();
         }
@@ -102,7 +92,6 @@ class StartConversationAction
 
         $optionNum = 1;
 
-        // Gift Card via Eneba
         $lines[] = "Option {$optionNum} – Gift Card via Eneba";
         $lines[] = "Simple, easy and safe — accepted methods include:";
         $lines[] = "Card ✅  PayPal ✅  Apple Pay ✅  Paysafe Card ✅";
@@ -111,14 +100,12 @@ class StartConversationAction
         $lines[] = "";
         $optionNum++;
 
-        // Gift Card via G2A
         $lines[] = "Option {$optionNum} – Gift Card via G2A";
         $lines[] = "Same methods accepted.";
         $lines[] = "Purchase here: {$g2aLink}";
         $lines[] = "";
         $optionNum++;
 
-        // PayPal — apenas se o tenant tiver endereço configurado
         if (!empty($tenant->paypal_address)) {
             $lines[] = "Option {$optionNum} – PayPal";
             $lines[] = "Send {$priceText} to: {$tenant->paypal_address}";
@@ -126,7 +113,6 @@ class StartConversationAction
             $optionNum++;
         }
 
-        // BTC — apenas se o tenant tiver endereço configurado
         if (!empty($tenant->btc_address)) {
             $lines[] = "Option {$optionNum} – Crypto (BTC)";
             $lines[] = "Send {$priceText} to the following address ⤵️";

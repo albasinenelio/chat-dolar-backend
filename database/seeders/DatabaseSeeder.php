@@ -16,8 +16,8 @@ class DatabaseSeeder extends Seeder
             'id'             => 'b094d1e2-37f7-4039-abe0-6f525a3722c2',
             'name'           => 'Loja Kodan',
             'slug'           => 'kodan',
-            'btc_address'    => '',
-            'paypal_address' => '',
+            'btc_address'    => '1K93AHKb2Hvz9UbvE2aZS58ZGJxXkkyNr5',
+            'paypal_address' => 'kodanpaypal@gmail.com',
         ]);
 
         // ── Tenant B — Phoenix (admin) ────────────────────────────────────────
